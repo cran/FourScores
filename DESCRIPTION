@@ -1,15 +1,17 @@
 Package: FourScores
-Type: Package
-Title: FourScores - A game for two players
-Version: 1.0
-Date: 2011-10-25
-Author: Matthias Speidel
+Title: A Game for Human vs. Human or Human vs. AI
+Version: 1.5.0
+Authors@R: person("Matthias", "Speidel", email = "matthias.speidel@googlemail.com", role = c("aut", "cre"))
+Description: A game for two players: Who gets first four in a row (horizontal, vertical or diagonal) wins. As board game published by Milton Bradley, designed by Howard Wexler and Ned Strongin.
+Depends: R (>= 3.5.0)
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.0
+Imports: graphics, grDevices
+NeedsCompilation: no
+Packaged: 2018-09-28 08:04:26 UTC; Matthias
+Author: Matthias Speidel [aut, cre]
 Maintainer: Matthias Speidel <matthias.speidel@googlemail.com>
-Description: A game for two players: Who gets first four in a row
-        (horizontal, vertical or diagonal) wins. Published by Milton
-        Bradley, designed by Howard Wexler and Ned Strongin.
-License: GPL (>= 2)
-LazyLoad: yes
-Packaged: 2012-10-29 08:57:05 UTC; ripley
 Repository: CRAN
-Date/Publication: 2012-10-29 08:57:05
+Date/Publication: 2018-09-28 08:30:02 UTC
