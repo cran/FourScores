@@ -1,3 +1,6 @@
+#bei MACuser=F: wenn man sich das gewinnerfeld anzeigen lässt und dann ins feld klickt, wird das spiel beendet.
+#besse wäre auf die siegermeldung zurückzuschalten.
+
 #' Main Function
 #'
 #' Function to play FourScores
@@ -5,6 +8,7 @@
 #' @param columns integer: how many columns shall the playing field have?
 #' @param AI boolean: play against AI?
 #' @param AIstrength integer: strength of the AI - number of moves the AI will simulate?
+#' @param AIplayernumber integer: 0 or 1: should the AI be player 1 or player 2?
 #' @param MACuser boolean: on some non-mac computers this can be set to \code{FALSE} to have mouse-functionality in the graphics device.
 #' @param PlayerNames array of characters: the players' names.
 #' @param getnewnames boolean: should new names be asked for?
@@ -15,10 +19,13 @@
 #' FourScores(AI = T, AIstrength = 10, MACuser = T, getnewnames = F, getnewcolors = F)
 #' }
 #' @export
-FourScores <- function(rows = 6, columns = 7, AI = FALSE, AIstrength = 14, MACuser = TRUE,
-                        PlayerNames = c("Player1", "Player2"), getnewnames = TRUE, PlayerColors = c("green", "blue"), getnewcolors = TRUE){
+FourScores <- function(rows = 6, columns = 7, AI = TRUE, AIstrength = rows * columns, AIplayernumber = 1, MACuser = TRUE,
+                        PlayerNames = c("AI", "Human"), getnewnames = FALSE, PlayerColors = c("green", "blue"), getnewcolors = FALSE){
 
 
+  if(AI & AIplayernumber == 2){
+    PlayerNames <- c("Human", "AI")
+  }
 
   # help-function which gives an optical help for the player to see which column is selected if he releases the mouse button
   # currently it cannot be defined outside, as it refers to field etc, which is not allowed as input in getgraphicsevent
@@ -90,12 +97,12 @@ FourScores <- function(rows = 6, columns = 7, AI = FALSE, AIstrength = 14, MACus
       FieldPlot(field = field, message = paste(PlayerNames[player], " (", PlayerPch[player], "): it's your turn", sep = ""),
                 PlayerColors = PlayerColors)
 
-      #if there is an AI, it is player1 and makes (at the moment) a random move
-      if(AI && player == 1){
-        column <- AImove(field = field, columns = columns, rows = rows, AIstrength = AIstrength)
+      #if there is an AI, it is player1 and makes a move
+      if(AI && player == AIplayernumber){
+        column <- AImove(field = field, AIstrength = AIstrength, AIplayernumber = AIplayernumber)
         #get an input for the collum by using 'getGraphicsEvent()'
       }else{
-        msg <- paste(PlayerNames[player], " (", PlayerPch[player], "):", "select column: ", sep = "")
+        msg <- paste(PlayerNames[player], " (", PlayerPch[player], "): ", "select column: ", sep = "")
         if(MACuser){
           column <- as.integer(readline(msg))
         }else{
@@ -136,7 +143,7 @@ FourScores <- function(rows = 6, columns = 7, AI = FALSE, AIstrength = 14, MACus
   # Add buttions to the plot, and ask the player(s) to show the field, to play again, or to exit the game.
   fbuttons(field = field, justsub = FALSE, MACuser = MACuser,
            message = msgLong,
-           rows = rows, columns = columns, AI = AI, AIstrength = AIstrength,
+           rows = rows, columns = columns, AI = AI, AIstrength = AIstrength, AIplayernumber = AIplayernumber,
            PlayerNames = PlayerNames,
            PlayerColors = PlayerColors)
 }
@@ -151,7 +158,7 @@ FourScores <- function(rows = 6, columns = 7, AI = FALSE, AIstrength = 14, MACus
 fbuttons <- function(field, justsub, message,
                      MACuser,
                      rows, columns,
-                     AI, AIstrength,
+                     AI, AIstrength, AIplayernumber,
                      PlayerNames,
                      PlayerColors){
   if(justsub){
@@ -188,7 +195,7 @@ fbuttons <- function(field, justsub, message,
   }
   #again
   if(((x >= 0.6 && x <= 0.9)&&(y >= 0.6 && y <= 0.8)) || whattodoMAC == "a"){
-    FourScores(rows = rows, columns = columns, AI = AI, AIstrength = AIstrength,
+    FourScores(rows = rows, columns = columns, AI = AI, AIstrength = AIstrength, AIplayernumber = AIplayernumber,
                MACuser = MACuser, PlayerNames = PlayerNames,
                getnewnames = FALSE, PlayerColors = PlayerColors, getnewcolors = FALSE)
   }
@@ -200,7 +207,7 @@ fbuttons <- function(field, justsub, message,
     fbuttons(field = field, justsub = TRUE,
              message = message,
              MACuser = MACuser,
-             rows = rows, columns = columns, AI = AI, AIstrength = AIstrength,
+             rows = rows, columns = columns, AI = AI, AIstrength = AIstrength, AIplayernumber = AIplayernumber,
              PlayerNames = PlayerNames,
              PlayerColors = PlayerColors)
 
@@ -441,13 +448,14 @@ resample <- function(x, ...) x[sample.int(length(x), ...)]
 #' @param field matrix: the playing field
 #' @inheritParams FourScores
 #' @return the selected row
-AImove <- function(field, columns, rows, AIstrength){
+AImove <- function(field, AIstrength, AIplayernumber){
 
   field0 <- field
 
   freecolumns0 <- which(apply(apply(field0, 2, is.na), 2, any))
 
-  #matrix with 4 columns and so many rows as there are free columns on the field
+  #matrix with 4 columns and so many rows as there are free columns on the field.
+  # This matrix will be used to evaluate each possible column as a move.
   allresults <- matrix(0, nrow = length(freecolumns0), ncol = 4)
   #background: I want to have evaluated, how each column performs if it is chosed
 
@@ -458,52 +466,58 @@ AImove <- function(field, columns, rows, AIstrength){
     #    ...     winnning, losing, draw, moves
     results <- c(       0,      0,    0,    0)
 
-    playertmp <- 1
+
+    playertmp <- AIplayernumber
 
     columntmp <- freecolumns0[j]
 
     field1 <- NewField(field = field0, column = columntmp, player = playertmp)
     #check, if the AI has won by this move
-    won1 <- FieldWinCheck(field1, playertmp)
-    draw1 <- !won1 && sum(is.na(field1)) == 0
+    wonAI <- FieldWinCheck(field1, playertmp)
+    drawAI <- !wonAI && sum(is.na(field1)) == 0
 
     freecolumns1 <- which(apply(apply(field1, 2, is.na), 2, any))
 
-    won2 <- FALSE
-    draw2 <- FALSE
+    wonHuman <- FALSE
+    drawHuman <- FALSE
     #check if human can win the move after the AI
-    playertmp <- 2
+    playertmp <- (AIplayernumber %% 2 ) + 1
+      #if AI is player 1, Human is 2; if AI is player2, Human is player1.
     for(n in 1:length(freecolumns1)){
       columntmp <- freecolumns1[n]
       field2 <- NewField(field = field1, column = columntmp, player = playertmp)
-      won2 <- FieldWinCheck(field2, playertmp) | won2
-      draw2 <- !won2 && sum(is.na(field2)) == 0 | draw2
+      wonHuman <- FieldWinCheck(field2, playertmp) | wonHuman # logical OR needed to detect any winning column.
+      drawHuman <- !wonHuman && sum(is.na(field2)) == 0 | drawHuman
     }
 
 
-    #now, if after the first AI move and the following Human move, no one has won,
-    #make AIstrength number of games (by default 14) for each free column, where the Human player has to move
+    #now, if after the first AI move and the following (hypothetical) Human move, no one has won,
+    #make AIstrength number of games (by default 42 (7*6)) for each free column, where the Human player has to move next.
     for(dummy in 1:AIstrength){
 
       fieldtmp <- field1
 
-      wontmp  <- won1  | won2
-      drawtmp <- draw1 | draw2
+      wontmp  <- wonAI  | wonHuman
+      drawtmp <- drawAI | drawHuman
 
       #getting the choosable columns (so often they can be chosen)
-      tmp <- rep(1:columns, times = apply(apply(fieldtmp, 2, is.na), 2, sum))
+      tmp <- rep(1:ncol(field), times = apply(apply(fieldtmp, 2, is.na), 2, sum))
 
-      #permutation these columns and receive a random game
+      #permutate these columns and receive a random game (which might end earlier because of a player winning)
       samp <- sample(tmp, size = length(tmp), replace = FALSE)
 
+      #Counter for the number of rounds.
       m <- 0
 
       while(!(wontmp | drawtmp)){
         #increasing the number of rounds
         m <- m + 1
 
-        #Variable for remembering whether player1 oder player2 has to move
-        playertmp <- (m %% 2) + 1
+        #Variable indicating whether player1 oder player2 has to move
+        # In the first cycle, playertmp has be be the number of the human
+        # (which is 2 if the AI is player1; and is 1 if the AI is player2)
+        # (which is achieved if the left part of the modulo is odd; resp. if it is even)
+        playertmp <- ((m + AIplayernumber + 1) %% 2) + 1
         #get a column from the sample sequence of moves.
         columntmp <- samp[m]
 
@@ -523,21 +537,26 @@ AImove <- function(field, columns, rows, AIstrength){
       if(drawtmp){
         results[3] <- results[3] + 1
       }else{
-        #if playertmp == 1 has won, the score for winning is increased by 1
-        #if playertmp == 2 has won, the score for losing is increased by 1
-        results[playertmp] <- results[playertmp] + 1
+        #if the AI has won, increase the number of winnings (first element);
+        #if the human has won, increase the number of losings (second element);
+        # four possibilities:
+        # AI won, AI = player1, in this case playertmp = 1 (increase element 1)
+        # AI won, AI = player2;              playertmp = 2 (increase element 1)
+        # AI lost; AI = player1;             playertmp = 2 (increase element 2)
+        # AI lost; AI = player2;             playertmp = 1 (increase element 2)
+        results[2 - as.numeric(playertmp == AIplayernumber)] <- results[2 - as.numeric(playertmp == AIplayernumber)] + 1
       }
     }
 
     #if AI can win without sampling, store it
-    if(won1){
+    if(wonAI){
       allresults[j, ] <- c(AIstrength + 1, 0, 0, 1)
     }else{
       #if Human can win without sampling, store it
-      if(won2){
+      if(wonHuman){
         allresults[j, ] <- c(0, AIstrength + 1, 0, 2)
         #in all other cases, save the sampling results
-        #(how of has the AI won, how often Human, or has it been a draw, and how many steps did it take
+        #(how often has the AI won, how often Human, or has it been a draw, and how many steps did it take
       }else{
         allresults[j, ] <- results #absolute frequencies
       }
@@ -584,7 +603,10 @@ FieldPlot <- function(field, message,
   rows <- nrow(field)
   columns <- ncol(field)
   graphics::plot(c(1 - 0.2, ncol(field) + 0.2), c(1 - 0.2, nrow(field) + 0.5), type = "n", xlab = "", ylab = "",
-       main = message)
+                 xaxt = "n",
+                 main = message)
+
+  graphics::axis(1, at = 1:columns, labels = 1:columns)
   graphics::abline(h = 1:rows + 0.5, v = 1:columns + 0.5)
 
   #plotting the stones of each row into the field
